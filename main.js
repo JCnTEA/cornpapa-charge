@@ -1,76 +1,46 @@
 import React, { useEffect, useState } from 'https://cdn.skypack.dev/react';
 import ReactDOM from 'https://cdn.skypack.dev/react-dom';
 
-const mockVehicles = [
-  { zone: 'A區', name: 'Model 3 Highland', battery: 87, charging: '充電中', range: 356 },
-  { zone: 'A區', name: 'Model Y Long Range', battery: 56, charging: '未充電', range: 221 },
-  { zone: 'B區', name: 'Model S Plaid', battery: 92, charging: '充電中', range: 432 }
-];
-
-const mockProduct = {
-  name: '特斯拉中控HUB集線器',
-  img: 'https://fakeimg.pl/300x200/?text=HUB商品圖',
-  link: 'https://shopee.tw/cornpapa_hub'
-};
-
 function ChargeMonitor() {
-  const [vehicles, setVehicles] = useState([]);
-  const [productVisible, setProductVisible] = useState(false);
+  const [vehicleData, setVehicleData] = useState(null);
+
+  // ✅ TeslaFi API 載入函式
+  async function fetchTeslaFiData() {
+    const apiKey = '你的_API_KEY_貼這'; // 👈 請改成你的 TeslaFi API Key
+    const url = `https://www.teslafi.com/feed.php?command=lastGood&token=${apiKey}`;
+    try {
+      const res = await fetch(url);
+      const data = await res.json();
+      setVehicleData(data);
+    } catch (err) {
+      console.error("TeslaFi API 失敗", err);
+    }
+  }
 
   useEffect(() => {
-    setVehicles(mockVehicles);
-
-    const productTimer = setInterval(() => {
-      setProductVisible(true);
-      setTimeout(() => setProductVisible(false), 10000);
-    }, 300000);
-
-    const refreshTimer = setInterval(() => {
-      console.log('⏳ 模擬刷新車輛資訊（30秒）');
-    }, 30000);
-
-    return () => {
-      clearInterval(productTimer);
-      clearInterval(refreshTimer);
-    };
+    fetchTeslaFiData(); // 首次載入
+    const timer = setInterval(fetchTeslaFiData, 30000); // 每30秒更新
+    return () => clearInterval(timer);
   }, []);
 
-  return React.createElement('div', { className: 'p-6 min-h-screen' }, [
-    React.createElement('h1', { className: 'text-3xl font-bold mb-4 text-[#ff8200]' }, 'CORN PAPA 車輛充電監控'),
-    ...['A區', 'B區'].map(zone =>
-      React.createElement('div', { key: zone, className: 'mb-6' }, [
-        React.createElement('h2', { className: 'text-xl font-semibold text-[#ff8200] mb-2' }, `【${zone}】`),
-        React.createElement('div', { className: 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4' },
-          vehicles.filter(v => v.zone === zone).map((v, i) =>
-            React.createElement('div', { key: i, className: 'border border-gray-300 rounded-2xl p-4 shadow' }, [
-              React.createElement('h3', { className: 'text-lg font-bold mb-1' }, v.name),
-              React.createElement('p', null, ['🔋 電量：', React.createElement('span', { className: 'text-[#ff8200] font-bold' }, `${v.battery}%`)]),
-              React.createElement('div', { className: 'w-full bg-gray-200 rounded-full h-3 mt-1 mb-2 overflow-hidden' },
-                React.createElement('div', {
-                  className: 'h-3 bg-green-500',
-                  style: { width: `${v.battery}%`, transition: 'width 1s ease-in-out' }
-                })
-              ),
-              React.createElement('p', null, ['⚡ 狀態：', React.createElement('span', { className: 'text-[#ff8200] font-bold' }, v.charging)]),
-              React.createElement('p', null, `🚗 續航：約 ${v.range} 公里`)
-            ])
-          )
-        )
-      ])
-    ),
-    productVisible && React.createElement('div', {
-      className: 'fixed bottom-4 right-4 bg-white border border-[#ff8200] shadow-lg rounded-xl p-4 w-80'
-    }, [
-      React.createElement('h4', { className: 'text-[#ff8200] font-bold mb-2' }, '🔥 今日推薦'),
-      React.createElement('img', { src: mockProduct.img, className: 'mb-2 rounded' }),
-      React.createElement('p', { className: 'font-semibold mb-1' }, mockProduct.name),
-      React.createElement('a', {
-        href: mockProduct.link,
-        target: '_blank',
-        className: 'text-sm text-blue-600 underline'
-      }, '立即購買')
-    ])
-  ]);
+  return (
+    <div className="p-6 min-h-screen bg-white text-black">
+      <h1 className="text-3xl font-bold mb-4 text-[#ff8200]">CORN PAPA 車輛充電監控</h1>
+      {vehicleData ? (
+        <div className="border p-4 rounded-xl shadow max-w-md">
+          <h2 className="text-xl font-bold mb-2">{vehicleData.car_version}</h2>
+          <p>🔋 電量：<span className="text-green-600 font-bold">{vehicleData.battery_level}%</span></p>
+          <div className="w-full bg-gray-200 rounded-full h-3 my-2">
+            <div className="bg-green-500 h-3" style={{ width: `${vehicleData.battery_level}%`, transition: 'width 0.5s' }}></div>
+          </div>
+          <p>⚡ 狀態：<span className="text-[#ff8200]">{vehicleData.charging_state}</span></p>
+          <p>🚗 續航：約 {vehicleData.ideal_battery_range} 公里</p>
+        </div>
+      ) : (
+        <p>📡 載入中...</p>
+      )}
+    </div>
+  );
 }
 
-ReactDOM.render(React.createElement(ChargeMonitor), document.getElementById('root'));
+ReactDOM.render(<ChargeMonitor />, document.getElementById('root'));
